@@ -1,0 +1,25 @@
+{
+  "name": "outing-planner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An agent that plans an afternoon/evening outing: gathers rated venues per category (froyo, coffee, dinner...), lets the user pick from paged cards, then builds the most efficient route.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "bot": "tsx src/bot/cli.ts"
+  },
+  "dependencies": {
+    "next": "15.1.6",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}
