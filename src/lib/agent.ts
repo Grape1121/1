@@ -1,4 +1,5 @@
 import { DEFAULT_RADIUS_METERS, USE_MOCK_DATA } from "./config";
+import { extractKeywords } from "./keywords";
 import { fetchCandidates, resolveOrigin } from "./providers";
 import { computeTravelMatrix, TravelMode } from "./providers/googleRoutes";
 import { planRoute, planRouteWithMatrix } from "./routing";
@@ -44,7 +45,9 @@ export async function getCategoryOptions(
   const radius = context.radiusMeters ?? DEFAULT_RADIUS_METERS;
 
   const { places, source } = await fetchCandidates(category, ctx, origin, topN);
-  const ranked = scorePlaces(places, ctx, radius).slice(0, topN);
+  const ranked = scorePlaces(places, ctx, radius)
+    .slice(0, topN)
+    .map((p) => ({ ...p, keywords: extractKeywords(p.reviews) }));
 
   return { category, origin, source, options: ranked };
 }

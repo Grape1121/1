@@ -369,6 +369,15 @@ function SelectingView(props: {
                 {p.distanceMeters != null && fmtDistance(Math.round(p.distanceMeters))}{" "}
                 away
               </div>
+              {p.keywords && p.keywords.length > 0 && (
+                <div className="tags">
+                  {p.keywords.map((k) => (
+                    <span key={k} className="tag">
+                      {k}
+                    </span>
+                  ))}
+                </div>
+              )}
               {p.reviews?.[0]?.text && (
                 <div className="review">&ldquo;{p.reviews[0].text}&rdquo;</div>
               )}
