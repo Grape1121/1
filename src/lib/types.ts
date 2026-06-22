@@ -26,6 +26,11 @@ export interface CategoryRequest {
   query: string;
 }
 
+export interface KeywordTag {
+  word: string;
+  sentiment: "positive" | "negative";
+}
+
 export interface Review {
   author?: string;
   rating?: number;
@@ -47,8 +52,8 @@ export interface Place {
   photoUrl?: string;
   mapsUrl?: string;
   reviews: Review[];
-  /** 3-4 keywords distilled from the reviews. */
-  keywords?: string[];
+  /** Top sentiment words distilled from the reviews. */
+  keywords?: KeywordTag[];
 
   // ---- computed by the scoring step ----
   score?: number;
