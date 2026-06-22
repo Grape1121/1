@@ -256,12 +256,20 @@ button.ghost:disabled {
 }
 
 .tag {
-  background: var(--accent-soft);
-  color: var(--accent);
   border-radius: 6px;
   padding: 3px 9px;
   font-size: 11.5px;
   font-weight: 600;
+}
+
+.tag-pos {
+  background: var(--accent-2-soft);
+  color: var(--accent-2);
+}
+
+.tag-neg {
+  background: #fdecec;
+  color: #d23b3b;
 }
 
 .review {

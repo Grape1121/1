@@ -372,8 +372,13 @@ function SelectingView(props: {
               {p.keywords && p.keywords.length > 0 && (
                 <div className="tags">
                   {p.keywords.map((k) => (
-                    <span key={k} className="tag">
-                      {k}
+                    <span
+                      key={k.word}
+                      className={`tag ${
+                        k.sentiment === "positive" ? "tag-pos" : "tag-neg"
+                      }`}
+                    >
+                      {k.word}
                     </span>
                   ))}
                 </div>
