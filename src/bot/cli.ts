@@ -108,7 +108,7 @@ async function main() {
     chosen.push(options[idx]);
   }
 
-  const plan = buildPlan(context, chosen);
+  const plan = await buildPlan(context, chosen);
   console.log("\n✅  Your route:\n");
   plan.orderedPlaces.forEach((p, i) => {
     if (i > 0) {
