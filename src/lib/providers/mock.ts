@@ -3,12 +3,25 @@ import type { CategoryRequest, Place, Review } from "../types";
 
 // Curated believable names per common category so demos read naturally.
 const NAME_BANK: Record<string, string[]> = {
-  froyo: ["Frostbite Yogurt", "Swirl & Co.", "Yogurtland", "Chill Spoon", "Tart & Tang", "Cloud Nine Froyo"],
+  breakfast: ["Mama's on Washington", "Plow", "Kitchen Story", "Sweet Maple", "Brenda's", "Eats"],
+  brunch: ["Foreign Cinema", "Zazie", "Park Tavern", "The Snug", "Outerlands", "Hilda and Jesse"],
   coffee: ["Blue Bottle Coffee", "Ritual Coffee", "Sightglass", "Four Barrel", "Andytown", "Réveille Coffee"],
+  boba: ["Boba Guys", "Wonderful Dessert", "Little Sweet", "Plentea", "Steap Tea Bar", "Sharetea"],
+  lunch: ["Tartine Manufactory", "Souvla", "The Bird", "Ace's", "Marufuku Ramen", "El Farolito"],
+  froyo: ["Frostbite Yogurt", "Swirl & Co.", "Yogurtland", "Chill Spoon", "Tart & Tang", "Cloud Nine Froyo"],
+  icecream: ["Bi-Rite Creamery", "Salt & Straw", "Smitten", "Humphry Slocombe", "Garden Creamery", "Mitchell's"],
+  dessert: ["Bi-Rite Creamery", "Humphry Slocombe", "Smitten", "Salt & Straw", "Garden Creamery", "b. Patisserie"],
+  bakery: ["Tartine Bakery", "Arsicault", "b. Patisserie", "Jane the Bakery", "Neighbor Bakehouse", "Boudin"],
+  bookstore: ["City Lights Books", "Green Apple Books", "Dog Eared Books", "The Booksmith", "Alley Cat Books", "Borderlands"],
+  park: ["Dolores Park", "Golden Gate Park", "Alamo Square", "Crissy Field", "Lands End", "Buena Vista Park"],
+  museum: ["SFMOMA", "de Young Museum", "Exploratorium", "Asian Art Museum", "Legion of Honor", "Cable Car Museum"],
+  gallery: ["Fraenkel Gallery", "Gagosian", "Jenkins Johnson", "Catharine Clark", "Minnesota Street Project", "Et al."],
+  shopping: ["Westfield Centre", "Union Square", "Ferry Building", "Hayes Valley Shops", "Valencia St", "Chestnut St"],
+  viewpoint: ["Twin Peaks", "Bernal Heights", "Corona Heights", "Tank Hill", "Grandview Park", "Battery Spencer"],
+  cinema: ["The Castro Theatre", "Roxie Theater", "Alamo Drafthouse", "AMC Metreon", "Balboa Theatre", "Vogue Theatre"],
   dinner: ["Nopa", "Zuni Café", "Foreign Cinema", "Lazy Bear", "Rich Table", "State Bird Provisions"],
-  bookstore: ["City Lights Books", "Green Apple Books", "Dog Eared Books", "The Booksmith", "Alley Cat Books"],
-  bar: ["Trick Dog", "Smuggler's Cove", "True Laurel", "ABV", "Bourbon & Branch"],
-  dessert: ["Bi-Rite Creamery", "Humphry Slocombe", "Smitten", "Salt & Straw", "Garden Creamery"]
+  winebar: ["The Riddler", "Verjus", "Bar Crenn", "Amélie", "Terroir", "20 Spot"],
+  bar: ["Trick Dog", "Smuggler's Cove", "True Laurel", "ABV", "Bourbon & Branch", "Comstock Saloon"]
 };
 
 const REVIEW_BANK = [
