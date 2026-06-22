@@ -47,6 +47,8 @@ export interface Place {
   photoUrl?: string;
   mapsUrl?: string;
   reviews: Review[];
+  /** 3-4 keywords distilled from the reviews. */
+  keywords?: string[];
 
   // ---- computed by the scoring step ----
   score?: number;
