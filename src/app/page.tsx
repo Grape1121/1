@@ -15,11 +15,24 @@ import type {
 // ---- presets ---------------------------------------------------------------
 
 const PRESETS: CategoryRequest[] = [
-  { key: "froyo", label: "Froyo", query: "frozen yogurt" },
+  { key: "breakfast", label: "Breakfast", query: "breakfast spot" },
+  { key: "brunch", label: "Brunch", query: "brunch restaurant" },
   { key: "coffee", label: "Coffee", query: "coffee shop" },
-  { key: "dinner", label: "Dinner", query: "dinner restaurant" },
-  { key: "bookstore", label: "Bookstore", query: "bookstore" },
+  { key: "boba", label: "Boba tea", query: "bubble tea" },
+  { key: "lunch", label: "Lunch", query: "lunch restaurant" },
+  { key: "froyo", label: "Froyo", query: "frozen yogurt" },
+  { key: "icecream", label: "Ice cream", query: "ice cream shop" },
   { key: "dessert", label: "Dessert", query: "dessert" },
+  { key: "bakery", label: "Bakery", query: "bakery" },
+  { key: "bookstore", label: "Bookstore", query: "bookstore" },
+  { key: "park", label: "Park", query: "park" },
+  { key: "museum", label: "Museum", query: "museum" },
+  { key: "gallery", label: "Art gallery", query: "art gallery" },
+  { key: "shopping", label: "Shopping", query: "shopping mall" },
+  { key: "viewpoint", label: "Scenic spot", query: "scenic viewpoint" },
+  { key: "cinema", label: "Cinema", query: "movie theater" },
+  { key: "dinner", label: "Dinner", query: "dinner restaurant" },
+  { key: "winebar", label: "Wine bar", query: "wine bar" },
   { key: "bar", label: "Bar", query: "cocktail bar" }
 ];
 
@@ -63,11 +76,11 @@ export default function Home() {
   const [location, setLocation] = useState("Mission District, San Francisco");
   const [time, setTime] = useState("afternoon");
   const [companions, setCompanions] = useState<Companion>("partner");
-  const [categories, setCategories] = useState<CategoryRequest[]>([
-    PRESETS[0],
-    PRESETS[1],
-    PRESETS[2]
-  ]);
+  const [categories, setCategories] = useState<CategoryRequest[]>(
+    ["froyo", "coffee", "dinner"].map(
+      (k) => PRESETS.find((p) => p.key === k)!
+    )
+  );
 
   // selecting state
   const [stepIndex, setStepIndex] = useState(0);

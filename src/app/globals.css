@@ -1,13 +1,15 @@
 :root {
-  --bg: #0f1115;
-  --panel: #171a21;
-  --panel-2: #1f232c;
-  --border: #2a2f3a;
-  --text: #e7e9ee;
-  --muted: #9aa3b2;
-  --accent: #6ea8fe;
-  --accent-2: #4ade80;
-  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --panel-2: #f1f3f6;
+  --border: #e3e6ec;
+  --text: #1b1f27;
+  --muted: #6b7280;
+  --accent: #2f6df0;
+  --accent-soft: #eaf1ff;
+  --accent-2: #16a34a;
+  --accent-2-soft: #e7f6ec;
+  --shadow: 0 6px 24px rgba(20, 30, 60, 0.08);
 }
 
 * {
@@ -32,6 +34,7 @@ body {
 h1 {
   font-size: 28px;
   margin: 0 0 4px;
+  letter-spacing: -0.01em;
 }
 
 .sub {
@@ -58,12 +61,19 @@ label {
 input,
 select {
   width: 100%;
-  background: var(--panel-2);
+  background: #fff;
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 10px;
   padding: 11px 12px;
   font-size: 15px;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .row {
@@ -80,21 +90,29 @@ select {
 }
 
 .chip {
-  background: var(--panel-2);
+  background: #fff;
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 7px 12px;
+  padding: 8px 14px;
   font-size: 13px;
   cursor: pointer;
   user-select: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  color: var(--text);
+  transition: all 0.12s;
+}
+
+.chip:hover {
+  border-color: var(--accent);
 }
 
 .chip.active {
   border-color: var(--accent);
   color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
 }
 
 .chip .x {
@@ -105,28 +123,43 @@ button.primary {
   margin-top: 22px;
   width: 100%;
   background: var(--accent);
-  color: #0b0e13;
+  color: #fff;
   font-weight: 700;
   border: none;
   border-radius: 12px;
   padding: 13px;
   font-size: 15px;
   cursor: pointer;
+  transition: filter 0.12s;
+}
+
+button.primary:hover {
+  filter: brightness(1.05);
 }
 
 button.primary:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 button.ghost {
-  background: transparent;
+  background: #fff;
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 9px 14px;
   cursor: pointer;
   font-size: 14px;
+  transition: border-color 0.12s;
+}
+
+button.ghost:hover {
+  border-color: var(--accent);
+}
+
+button.ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .progress {
@@ -163,22 +196,24 @@ button.ghost {
 }
 
 .card {
-  background: var(--panel);
+  background: #fff;
   border: 2px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
   cursor: pointer;
-  transition: border-color 0.12s, transform 0.12s;
+  transition: border-color 0.12s, transform 0.12s, box-shadow 0.12s;
   display: flex;
   flex-direction: column;
 }
 
 .card:hover {
   transform: translateY(-2px);
+  box-shadow: var(--shadow);
 }
 
 .card.selected {
   border-color: var(--accent-2);
+  background: var(--accent-2-soft);
 }
 
 .card .photo {
@@ -210,7 +245,7 @@ button.ghost {
 }
 
 .star {
-  color: #ffce54;
+  color: #f5a623;
 }
 
 .review {
@@ -254,7 +289,7 @@ button.ghost {
   height: 30px;
   border-radius: 50%;
   background: var(--accent);
-  color: #0b0e13;
+  color: #fff;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -291,7 +326,7 @@ a.maps-link {
 }
 
 .error {
-  color: #ff8f8f;
+  color: #d23b3b;
   font-size: 14px;
   margin-top: 12px;
 }
