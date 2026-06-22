@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const origin = await resolveOrigin(context);
-    const plan = buildPlan({ ...context, ...origin }, places);
+    const plan = await buildPlan({ ...context, ...origin }, places);
     return NextResponse.json(plan);
   } catch (err) {
     console.error("[/api/route]", err);

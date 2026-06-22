@@ -1,11 +1,26 @@
-import { DEFAULT_RADIUS_METERS } from "./config";
+import { DEFAULT_RADIUS_METERS, USE_MOCK_DATA } from "./config";
 import { fetchCandidates, resolveOrigin } from "./providers";
-import { planRoute } from "./routing";
-import { scorePlaces } from "./scoring";
+import { computeTravelMatrix, TravelMode } from "./providers/googleRoutes";
+import { planRoute, planRouteWithMatrix } from "./routing";
+import { haversineMeters, scorePlaces } from "./scoring";
 import type { CategoryRequest, Place, RoutePlan, TripContext } from "./types";
 
 // Categories whose stop should stay at the end of the route (meal timing).
-const PIN_LAST = ["dinner", "lunch", "supper"];
+const PIN_LAST = ["dinner", "lunch", "supper", "brunch"];
+
+// Beyond this max straight-line gap between stops we assume driving, not walking.
+const DRIVE_THRESHOLD_METERS = 2500;
+
+function pickTravelMode(origin: { lat: number; lng: number }, places: Place[]): TravelMode {
+  const pts = [origin, ...places];
+  let maxGap = 0;
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      maxGap = Math.max(maxGap, haversineMeters(pts[i], pts[j]));
+    }
+  }
+  return maxGap > DRIVE_THRESHOLD_METERS ? "DRIVE" : "WALK";
+}
 
 export interface CategoryOptions {
   category: CategoryRequest;
@@ -34,7 +49,32 @@ export async function getCategoryOptions(
   return { category, origin, source, options: ranked };
 }
 
-/** Final agent step: turn the user's picks into an optimized route. */
-export function buildPlan(context: TripContext, selected: Place[]): RoutePlan {
-  return planRoute(context, selected, { pinLastCategories: PIN_LAST });
+/**
+ * Final agent step: turn the user's picks into an optimized route. Uses real
+ * Google Routes travel times when a key is configured, otherwise a
+ * straight-line estimate. Falls back to the estimate on any API failure.
+ */
+export async function buildPlan(
+  context: TripContext,
+  selected: Place[]
+): Promise<RoutePlan> {
+  const origin =
+    typeof context.lat === "number" && typeof context.lng === "number"
+      ? { lat: context.lat, lng: context.lng }
+      : await resolveOrigin(context);
+  const ctx: TripContext = { ...context, ...origin };
+  const mode = pickTravelMode(origin, selected);
+
+  if (!USE_MOCK_DATA && selected.length > 1) {
+    const points = [origin, ...selected.map((p) => ({ lat: p.lat, lng: p.lng }))];
+    const matrix = await computeTravelMatrix(points, mode);
+    if (matrix) {
+      return planRouteWithMatrix(ctx, selected, matrix, {
+        pinLastCategories: PIN_LAST,
+        mode
+      });
+    }
+  }
+
+  return planRoute(ctx, selected, { pinLastCategories: PIN_LAST, mode });
 }

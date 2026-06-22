@@ -1,117 +1,149 @@
 import { haversineMeters } from "./scoring";
+import type { TravelMatrix, TravelMode } from "./providers/googleRoutes";
 import type { Place, RouteLeg, RoutePlan, TripContext } from "./types";
 
-// Rough average walking/short-drive speed for time estimates (m/s).
-// ~3.6 km/h padded for crossings/waits; good enough for "is this route sane".
-const TRAVEL_SPEED_MPS = 1.4;
+// Rough city speeds for estimates when real travel times aren't available.
+const SPEED_MPS: Record<TravelMode, number> = {
+  WALK: 1.4, // ~5 km/h
+  DRIVE: 8.3 // ~30 km/h city driving
+};
 
 type Point = { name: string; lat: number; lng: number };
 
-function totalPathDistance(points: Point[]): number {
-  let total = 0;
-  for (let i = 0; i < points.length - 1; i++) {
-    total += haversineMeters(points[i], points[i + 1]);
-  }
-  return total;
+function originPoint(context: TripContext, places: Place[]): Point {
+  return {
+    name: context.location || "Start",
+    lat: context.lat ?? places[0]?.lat ?? 0,
+    lng: context.lng ?? places[0]?.lng ?? 0
+  };
 }
 
-/** Nearest-neighbour ordering starting from `origin` (open path, no return). */
-function nearestNeighbour(origin: Point, places: Place[]): Place[] {
-  const remaining = [...places];
-  const order: Place[] = [];
-  let current: Point = origin;
-  while (remaining.length > 0) {
-    let bestIdx = 0;
-    let bestDist = Infinity;
-    remaining.forEach((p, i) => {
-      const d = haversineMeters(current, p);
-      if (d < bestDist) {
-        bestDist = d;
-        bestIdx = i;
+/**
+ * Order `n` places to minimise total cost from the origin (an open path).
+ * Node indices: 0 = origin, 1..n = place k-1. `cost(i, j)` is the cost of
+ * travelling from node i to node j. Places in `pinLast` are forced to the end.
+ * Returns place indices (0..n-1) in visit order.
+ */
+function optimizeOrder(
+  n: number,
+  pinLast: Set<number>,
+  cost: (i: number, j: number) => number
+): number[] {
+  const free: number[] = [];
+  const pinned: number[] = [];
+  for (let k = 0; k < n; k++) (pinLast.has(k) ? pinned : free).push(k);
+
+  // Nearest-neighbour over the free stops.
+  const visited = new Set<number>();
+  const order: number[] = [];
+  let current = 0; // origin node
+  while (order.length < free.length) {
+    let best = -1;
+    let bestCost = Infinity;
+    for (const k of free) {
+      if (visited.has(k)) continue;
+      const c = cost(current, k + 1);
+      if (c < bestCost) {
+        bestCost = c;
+        best = k;
       }
-    });
-    const [next] = remaining.splice(bestIdx, 1);
-    order.push(next);
-    current = next;
+    }
+    visited.add(best);
+    order.push(best);
+    current = best + 1;
   }
-  return order;
-}
 
-/** 2-opt refinement to untangle the nearest-neighbour path. */
-function twoOpt(origin: Point, order: Place[]): Place[] {
-  if (order.length < 3) return order;
-  let best = order;
+  // 2-opt refinement.
+  const pathCost = (ord: number[]) => {
+    let total = 0;
+    let prev = 0;
+    for (const k of ord) {
+      total += cost(prev, k + 1);
+      prev = k + 1;
+    }
+    return total;
+  };
   let improved = true;
-  const pathDist = (route: Place[]) => totalPathDistance([origin, ...route]);
-
   while (improved) {
     improved = false;
-    for (let i = 0; i < best.length - 1; i++) {
-      for (let j = i + 1; j < best.length; j++) {
-        const candidate = [
-          ...best.slice(0, i),
-          ...best.slice(i, j + 1).reverse(),
-          ...best.slice(j + 1)
+    for (let i = 0; i < order.length - 1; i++) {
+      for (let j = i + 1; j < order.length; j++) {
+        const cand = [
+          ...order.slice(0, i),
+          ...order.slice(i, j + 1).reverse(),
+          ...order.slice(j + 1)
         ];
-        if (pathDist(candidate) + 1e-6 < pathDist(best)) {
-          best = candidate;
+        if (pathCost(cand) + 1e-6 < pathCost(order)) {
+          order.splice(0, order.length, ...cand);
           improved = true;
         }
       }
     }
   }
-  return best;
+
+  return [...order, ...pinned];
 }
 
-function buildDirectionsUrl(origin: Point, ordered: Place[]): string {
+function pinLastSet(places: Place[], categories: string[] = []): Set<number> {
+  const set = new Set<number>();
+  places.forEach((p, k) => {
+    if (categories.includes(p.category)) set.add(k);
+  });
+  return set;
+}
+
+function buildDirectionsUrl(
+  origin: Point,
+  ordered: Place[],
+  mode: TravelMode
+): string {
   if (ordered.length === 0) return "";
-  const o = `${origin.lat},${origin.lng}`;
   const destination = ordered[ordered.length - 1];
-  const dest = `${destination.lat},${destination.lng}`;
   const waypoints = ordered
     .slice(0, -1)
     .map((p) => `${p.lat},${p.lng}`)
     .join("|");
   const params = new URLSearchParams({
     api: "1",
-    origin: o,
-    destination: dest
+    origin: `${origin.lat},${origin.lng}`,
+    destination: `${destination.lat},${destination.lng}`,
+    travelmode: mode === "DRIVE" ? "driving" : "walking"
   });
   if (waypoints) params.set("waypoints", waypoints);
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
+interface PlanOpts {
+  pinLastCategories?: string[];
+  mode?: TravelMode;
+}
+
 /**
- * Order the chosen places into the shortest sensible path from the trip origin
- * and produce per-leg distance/time plus a one-click Google Maps directions URL.
- *
- * If any selected place opts into `pinLast` (e.g. dinner) it is forced to the
- * end so the route still respects meal timing.
+ * Straight-line route plan (no API). Used in mock mode or as a fallback.
  */
 export function planRoute(
   context: TripContext,
   places: Place[],
-  opts: { pinLastCategories?: string[] } = {}
+  opts: PlanOpts = {}
 ): RoutePlan {
-  const origin: Point = {
-    name: context.location || "Start",
-    lat: context.lat ?? places[0]?.lat ?? 0,
-    lng: context.lng ?? places[0]?.lng ?? 0
-  };
+  const mode = opts.mode ?? "WALK";
+  const origin = originPoint(context, places);
+  const nodes: Point[] = [origin, ...places];
+  const cost = (i: number, j: number) => haversineMeters(nodes[i], nodes[j]);
 
-  const pinLast = new Set(opts.pinLastCategories ?? []);
-  const pinned = places.filter((p) => pinLast.has(p.category));
-  const free = places.filter((p) => !pinLast.has(p.category));
-
-  let ordered = twoOpt(origin, nearestNeighbour(origin, free));
-  ordered = [...ordered, ...pinned];
+  const order = optimizeOrder(
+    places.length,
+    pinLastSet(places, opts.pinLastCategories),
+    cost
+  );
+  const ordered = order.map((k) => places[k]);
 
   const legs: RouteLeg[] = [];
   let prev: Point = origin;
   let totalDistanceMeters = 0;
   for (const place of ordered) {
     const distanceMeters = Math.round(haversineMeters(prev, place));
-    const durationSeconds = Math.round(distanceMeters / TRAVEL_SPEED_MPS);
+    const durationSeconds = Math.round(distanceMeters / SPEED_MPS[mode]);
     legs.push({ from: prev, to: place, distanceMeters, durationSeconds });
     totalDistanceMeters += distanceMeters;
     prev = place;
@@ -121,7 +153,67 @@ export function planRoute(
     orderedPlaces: ordered,
     legs,
     totalDistanceMeters,
-    totalDurationSeconds: Math.round(totalDistanceMeters / TRAVEL_SPEED_MPS),
-    directionsUrl: buildDirectionsUrl(origin, ordered)
+    totalDurationSeconds: legs.reduce((s, l) => s + l.durationSeconds, 0),
+    directionsUrl: buildDirectionsUrl(origin, ordered, mode)
+  };
+}
+
+/**
+ * Route plan using real travel times/distances from the Google Routes API.
+ * `matrix` is indexed with 0 = origin and 1..N = `places` in the same order.
+ */
+export function planRouteWithMatrix(
+  context: TripContext,
+  places: Place[],
+  matrix: TravelMatrix,
+  opts: PlanOpts = {}
+): RoutePlan {
+  const mode = opts.mode ?? "WALK";
+  const origin = originPoint(context, places);
+  const nodes: Point[] = [origin, ...places];
+
+  const dur = (i: number, j: number) =>
+    Number.isFinite(matrix.duration[i]?.[j])
+      ? matrix.duration[i][j]
+      : haversineMeters(nodes[i], nodes[j]) / SPEED_MPS[mode];
+  const dist = (i: number, j: number) =>
+    Number.isFinite(matrix.distance[i]?.[j])
+      ? matrix.distance[i][j]
+      : haversineMeters(nodes[i], nodes[j]);
+
+  const order = optimizeOrder(
+    places.length,
+    pinLastSet(places, opts.pinLastCategories),
+    dur
+  );
+
+  const legs: RouteLeg[] = [];
+  let totalDistanceMeters = 0;
+  let totalDurationSeconds = 0;
+  let prevNode = 0;
+  const ordered: Place[] = [];
+  for (const k of order) {
+    const node = k + 1;
+    const place = places[k];
+    ordered.push(place);
+    const distanceMeters = Math.round(dist(prevNode, node));
+    const durationSeconds = Math.round(dur(prevNode, node));
+    legs.push({
+      from: prevNode === 0 ? origin : places[order[ordered.length - 2]],
+      to: place,
+      distanceMeters,
+      durationSeconds
+    });
+    totalDistanceMeters += distanceMeters;
+    totalDurationSeconds += durationSeconds;
+    prevNode = node;
+  }
+
+  return {
+    orderedPlaces: ordered,
+    legs,
+    totalDistanceMeters,
+    totalDurationSeconds,
+    directionsUrl: buildDirectionsUrl(origin, ordered, mode)
   };
 }

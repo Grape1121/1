@@ -445,7 +445,7 @@ function PlanView({ plan, onRestart }: { plan: RoutePlan; onRestart: () => void 
       ))}
 
       <div className="totals">
-        Total walking distance: <strong>{fmtDistance(plan.totalDistanceMeters)}</strong>
+        Total distance: <strong>{fmtDistance(plan.totalDistanceMeters)}</strong>
       </div>
 
       {plan.directionsUrl && (
