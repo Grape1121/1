@@ -191,6 +191,33 @@ button.ghost:disabled {
   font-size: 14px;
 }
 
+.segmented {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+}
+
+.seg-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.seg-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 .cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
