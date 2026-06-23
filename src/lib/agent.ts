@@ -1,4 +1,5 @@
 import { DEFAULT_RADIUS_METERS, USE_MOCK_DATA } from "./config";
+import { hoursLabelForDay, isOpenDuringWindow, timeToMinutes } from "./hours";
 import { extractKeywords } from "./keywords";
 import { fetchCandidates, resolveOrigin } from "./providers";
 import { computeTravelMatrix, TravelMode } from "./providers/googleRoutes";
@@ -44,8 +45,36 @@ export async function getCategoryOptions(
   const ctx: TripContext = { ...context, lat: origin.lat, lng: origin.lng };
   const radius = context.radiusMeters ?? DEFAULT_RADIUS_METERS;
 
-  const { places, source } = await fetchCandidates(category, ctx, origin, topN);
-  const ranked = scorePlaces(places, ctx, radius)
+  // Fetch a few extra so we still have enough after the opening-hours filter.
+  const fetchCount = Math.max(topN, 15);
+  const { places, source } = await fetchCandidates(category, ctx, origin, fetchCount);
+
+  let scored = scorePlaces(places, ctx, radius);
+
+  // Only keep places open during the outing window (when a valid one is given).
+  const startMin = timeToMinutes(context.startTime);
+  const endMin = timeToMinutes(context.endTime);
+  const day = context.dayOfWeek;
+  const hasWindow =
+    startMin != null && endMin != null && endMin > startMin && typeof day === "number";
+
+  if (hasWindow) {
+    scored = scored
+      .map((p) => {
+        const open = isOpenDuringWindow(p.hoursPeriods, day!, startMin!, endMin!);
+        return {
+          ...p,
+          openDuringWindow: open ?? undefined,
+          hoursLabel: hoursLabelForDay(p.hoursPeriods, day!),
+          _open: open
+        };
+      })
+      // Drop only places we KNOW are closed; keep open + unknown.
+      .filter((p) => p._open !== false)
+      .map(({ _open, ...p }) => p);
+  }
+
+  const ranked = scored
     .slice(0, topN)
     .map((p) => ({ ...p, keywords: extractKeywords(p.reviews) }));
 

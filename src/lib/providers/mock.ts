@@ -1,5 +1,40 @@
 import { DEFAULT_ORIGIN } from "../config";
-import type { CategoryRequest, Place, Review } from "../types";
+import type { CategoryRequest, OpeningPeriod, Place, Review } from "../types";
+
+// Typical [open, close] hours per category; close may exceed 24 (next-day).
+const HOURS_BY_CATEGORY: Record<string, [number, number]> = {
+  breakfast: [7, 14],
+  brunch: [9, 15],
+  coffee: [7, 18],
+  bakery: [7, 18],
+  boba: [11, 22],
+  lunch: [11, 15],
+  froyo: [12, 22],
+  icecream: [12, 22],
+  dessert: [12, 23],
+  bookstore: [10, 20],
+  museum: [10, 18],
+  gallery: [11, 19],
+  shopping: [10, 21],
+  park: [6, 22],
+  viewpoint: [6, 23],
+  cinema: [11, 24],
+  dinner: [17, 23],
+  winebar: [16, 24],
+  bar: [16, 26]
+};
+
+function mockHours(categoryKey: string): OpeningPeriod[] {
+  const [openHour, closeHour] = HOURS_BY_CATEGORY[categoryKey] ?? [9, 21];
+  const periods: OpeningPeriod[] = [];
+  for (let d = 0; d < 7; d++) {
+    const openMin = openHour * 60;
+    const closeDay = closeHour >= 24 ? d + 1 : d;
+    const closeMin = (closeHour >= 24 ? closeHour - 24 : closeHour) * 60;
+    periods.push({ openDay: d, openMin, closeDay, closeMin });
+  }
+  return periods;
+}
 
 // Curated believable names per common category so demos read naturally.
 const NAME_BANK: Record<string, string[]> = {
@@ -98,7 +133,8 @@ export function mockSearch(
       lng,
       photoUrl: `https://picsum.photos/seed/${encodeURIComponent(name)}/600/400`,
       mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`,
-      reviews
+      reviews,
+      hoursPeriods: mockHours(category.key)
     };
   });
 }
