@@ -67,6 +67,44 @@ function fmtDistance(meters: number) {
   return meters < 1000 ? `${meters} m` : `${(meters / 1000).toFixed(1)} km`;
 }
 
+// Emoji per stop category for a friendlier timeline.
+const CATEGORY_EMOJI: Record<string, string> = {
+  breakfast: "🥐", brunch: "🍳", coffee: "☕", boba: "🧋", lunch: "🍜",
+  froyo: "🍦", icecream: "🍨", dessert: "🍰", bakery: "🥖", bookstore: "📚",
+  park: "🌳", museum: "🏛️", gallery: "🖼️", shopping: "🛍️", viewpoint: "🌅",
+  cinema: "🎬", dinner: "🍽️", winebar: "🍷", bar: "🍸"
+};
+
+// Rough time spent at each kind of stop (minutes) for the schedule estimate.
+const DWELL_MIN: Record<string, number> = {
+  breakfast: 45, brunch: 60, coffee: 45, boba: 30, lunch: 60, froyo: 30,
+  icecream: 30, dessert: 30, bakery: 20, bookstore: 40, park: 45, museum: 75,
+  gallery: 45, shopping: 60, viewpoint: 30, cinema: 130, dinner: 90,
+  winebar: 75, bar: 75
+};
+
+function emojiFor(category: string) {
+  return CATEGORY_EMOJI[category] ?? "📍";
+}
+
+function dwellFor(category: string) {
+  return DWELL_MIN[category] ?? 45;
+}
+
+function fmtClock(totalMin: number) {
+  const m = ((Math.round(totalMin) % 1440) + 1440) % 1440;
+  const hh = Math.floor(m / 60);
+  const mm = m % 60;
+  const ampm = hh < 12 ? "AM" : "PM";
+  const h12 = ((hh + 11) % 12) + 1;
+  return `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
+}
+
+function parseClock(hhmm?: string): number | null {
+  const m = hhmm?.match(/^(\d{1,2}):(\d{2})$/);
+  return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null;
+}
+
 // ---- page ------------------------------------------------------------------
 
 export default function Home() {
@@ -302,7 +340,12 @@ export default function Home() {
       )}
 
       {stage === "plan" && plan && (
-        <PlanView plan={plan} onRestart={restart} />
+        <PlanView
+          plan={plan}
+          startTime={startTime}
+          endTime={endTime}
+          onRestart={restart}
+        />
       )}
     </main>
   );
@@ -455,44 +498,112 @@ function SelectingView(props: {
 
 // ---- plan view -------------------------------------------------------------
 
-function PlanView({ plan, onRestart }: { plan: RoutePlan; onRestart: () => void }) {
+function PlanView({
+  plan,
+  startTime,
+  endTime,
+  onRestart
+}: {
+  plan: RoutePlan;
+  startTime: string;
+  endTime: string;
+  onRestart: () => void;
+}) {
+  // Build an estimated schedule from the start time, travel legs and dwell time.
+  const startMin = parseClock(startTime);
+  const endMin = parseClock(endTime);
+  let cursor = startMin ?? 0;
+  const schedule = plan.orderedPlaces.map((p, i) => {
+    cursor += (plan.legs[i]?.durationSeconds ?? 0) / 60; // travel to this stop
+    const arrival = cursor;
+    cursor += dwellFor(p.category); // time spent here
+    return { arrival, leave: cursor };
+  });
+  const finishMin = cursor;
+  const overruns =
+    startMin != null && endMin != null && finishMin > endMin;
+
   return (
     <div className="panel">
-      <div className="progress">
-        <span className="step">Your plan</span>
-        <span className="count">
-          {plan.orderedPlaces.length} stops · {fmtDuration(plan.totalDurationSeconds)} total travel
-        </span>
+      <div className="plan-hero">
+        <div className="plan-hero-emoji">🎉</div>
+        <div>
+          <h2 className="plan-hero-title">Your outing is planned!</h2>
+          <div className="stat-chips">
+            <span className="stat">📍 {plan.orderedPlaces.length} stops</span>
+            <span className="stat">🚶 {fmtDuration(plan.totalDurationSeconds)} travel</span>
+            <span className="stat">📏 {fmtDistance(plan.totalDistanceMeters)}</span>
+            {startMin != null && (
+              <span className="stat">
+                🕒 {fmtClock(startMin)} – {fmtClock(finishMin)}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
-      {plan.orderedPlaces.map((p, i) => (
-        <div key={p.id}>
-          {i > 0 && plan.legs[i] && (
-            <div className="leg">
-              ↓ {fmtDistance(plan.legs[i].distanceMeters)} ·{" "}
-              {fmtDuration(plan.legs[i].durationSeconds)}
-            </div>
-          )}
-          <div className="plan-stop">
-            <div className="badge">{i + 1}</div>
-            <div>
-              <div className="name">{p.name}</div>
-              <div className="meta">
-                <span className="star">{stars(p.rating)}</span> {p.rating.toFixed(1)} ·{" "}
-                {p.address ?? ""}
+      {overruns && (
+        <div className="overrun">
+          ⚠️ This plan runs to about {fmtClock(finishMin)}, past your{" "}
+          {fmtClock(endMin!)} end time. Drop a stop or start earlier to fit.
+        </div>
+      )}
+
+      <div className="timeline">
+        {plan.orderedPlaces.map((p, i) => (
+          <div key={p.id}>
+            {i > 0 && plan.legs[i] && (
+              <div className="tleg">
+                <span className="tleg-line" />
+                <span className="tleg-text">
+                  {plan.legs[i].distanceMeters > 2000 ? "🚗" : "🚶"}{" "}
+                  {fmtDistance(plan.legs[i].distanceMeters)} ·{" "}
+                  {fmtDuration(plan.legs[i].durationSeconds)}
+                </span>
+              </div>
+            )}
+            <div className="tstop">
+              <div className="tstop-avatar">
+                <span className="tstop-emoji">{emojiFor(p.category)}</span>
+                <span className="tstop-num">{i + 1}</span>
+              </div>
+              {p.photoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className="tstop-photo" src={p.photoUrl} alt={p.name} />
+              )}
+              <div className="tstop-body">
+                {startMin != null && (
+                  <div className="tstop-time">{fmtClock(schedule[i].arrival)}</div>
+                )}
+                <div className="tstop-name">{p.name}</div>
+                <div className="meta">
+                  <span className="star">{stars(p.rating)}</span> {p.rating.toFixed(1)}
+                  {p.reviewCount ? ` · ${p.reviewCount.toLocaleString()} reviews` : ""}
+                </div>
+                {p.keywords && p.keywords.length > 0 && (
+                  <div className="tags">
+                    {p.keywords.map((k) => (
+                      <span
+                        key={k.word}
+                        className={`tag ${
+                          k.sentiment === "positive" ? "tag-pos" : "tag-neg"
+                        }`}
+                      >
+                        {k.word}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {p.address && <div className="tstop-addr">{p.address}</div>}
               </div>
             </div>
           </div>
-        </div>
-      ))}
-
-      <div className="totals">
-        Total distance: <strong>{fmtDistance(plan.totalDistanceMeters)}</strong>
+        ))}
       </div>
 
       {plan.directionsUrl && (
         <a
-          className="maps-link"
+          className="route-cta"
           href={plan.directionsUrl}
           target="_blank"
           rel="noreferrer"
@@ -503,7 +614,7 @@ function PlanView({ plan, onRestart }: { plan: RoutePlan; onRestart: () => void 
 
       <div className="nav">
         <button className="ghost" onClick={onRestart}>
-          ↺ Start over
+          ↺ Plan another outing
         </button>
       </div>
     </div>
