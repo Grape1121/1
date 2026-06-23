@@ -502,7 +502,23 @@ function SelectingView(props: {
                 </div>
               )}
               {p.reviews?.[0]?.text && (
-                <div className="review">&ldquo;{p.reviews[0].text}&rdquo;</div>
+                <div className="review-wrap">
+                  <div className="review">&ldquo;{p.reviews[0].text}&rdquo;</div>
+                  <div className="review-pop">
+                    {p.reviews.map((r, idx) => (
+                      <div key={idx} className="review-pop-item">
+                        {(r.author || r.rating) && (
+                          <div className="review-pop-head">
+                            {r.author ?? "Reviewer"}
+                            {r.rating ? ` · ${r.rating}★` : ""}
+                            {r.relativeTime ? ` · ${r.relativeTime}` : ""}
+                          </div>
+                        )}
+                        <div>&ldquo;{r.text}&rdquo;</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>

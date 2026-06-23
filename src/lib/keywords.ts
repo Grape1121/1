@@ -15,25 +15,35 @@ const POSITIVE = new Set([
   "quiet", "spacious", "convenient", "consistent", "fluffy", "moist", "tender",
   "kind", "polite", "efficient", "prompt", "vibrant", "incredible",
   "outstanding", "stellar", "superb", "refreshing", "satisfying", "hearty",
-  "comforting", "comfortable", "flavour", "flavorful", "delightful", "happy",
-  "impressed", "enjoyed", "enjoy", "pleasant", "exceptional", "phenomenal"
+  "comforting", "comfortable", "delightful", "happy", "impressed", "enjoyed",
+  "enjoy", "pleasant", "exceptional", "phenomenal"
 ]);
 
+// NOTE: words that double as menu items in food reviews are deliberately
+// excluded to avoid false alarms — e.g. "dirty" (dirty chai), "cold" (cold
+// brew), "dry" (dry martini).
 const NEGATIVE = new Set([
-  "rude", "slow", "dirty", "expensive", "overpriced", "pricey", "bland",
-  "tasteless", "cold", "stale", "soggy", "dry", "greasy", "oily", "cramped",
-  "crowded", "loud", "noisy", "disappointing", "disappointed", "mediocre",
-  "meh", "wrong", "mistake", "rushed", "unfriendly", "inattentive", "ignored",
-  "gross", "nasty", "burnt", "undercooked", "overcooked", "watery", "mushy",
-  "sketchy", "dingy", "outdated", "limited", "understaffed", "messy", "sticky",
-  "smelly", "bad", "worst", "terrible", "horrible", "awful", "poor", "lacking",
-  "lackluster", "underwhelming", "costly", "broken", "bummer", "unprofessional",
-  "frustrating", "annoying", "tasteless", "flavorless", "stingy", "chaotic"
+  "rude", "slow", "expensive", "overpriced", "pricey", "bland", "tasteless",
+  "stale", "soggy", "greasy", "cramped", "crowded", "loud", "noisy",
+  "disappointing", "disappointed", "mediocre", "meh", "rushed", "unfriendly",
+  "inattentive", "ignored", "gross", "nasty", "burnt", "undercooked",
+  "overcooked", "watery", "mushy", "sketchy", "dingy", "outdated",
+  "understaffed", "messy", "smelly", "worst", "terrible", "horrible", "awful",
+  "poor", "lacking", "lackluster", "underwhelming", "costly", "broken",
+  "unprofessional", "frustrating", "annoying", "flavorless", "stingy", "chaotic"
+]);
+
+// If a sentiment word is preceded by one of these, skip it ("not friendly").
+const NEGATORS = new Set([
+  "not", "no", "never", "isnt", "wasnt", "arent", "werent", "didnt", "dont",
+  "doesnt", "wouldnt", "cant", "couldnt", "hardly", "barely", "without",
+  "nothing", "lacks", "lacked"
 ]);
 
 /**
  * Top sentiment keywords for a place, frequency-ranked, each tagged positive or
- * negative so the UI can colour them green / red.
+ * negative so the UI can colour them green / red. Skips negated mentions and
+ * food-ambiguous words. Still a heuristic, not true NLP.
  */
 export function extractKeywords(reviews: Review[], max = 4): KeywordTag[] {
   const counts = new Map<
@@ -42,15 +52,21 @@ export function extractKeywords(reviews: Review[], max = 4): KeywordTag[] {
   >();
 
   for (const r of reviews) {
-    const words = (r.text || "").toLowerCase().match(/[a-z'][a-z']{2,}/g) || [];
-    for (let w of words) {
-      w = w.replace(/'s$/, "").replace(/'$/, "");
+    const tokens = (r.text || "").toLowerCase().match(/[a-z][a-z']{2,}/g) || [];
+    for (let i = 0; i < tokens.length; i++) {
+      const w = tokens[i].replace(/'s$/, "").replace(/'$/, "");
       const sentiment: "positive" | "negative" | null = POSITIVE.has(w)
         ? "positive"
         : NEGATIVE.has(w)
           ? "negative"
           : null;
       if (!sentiment) continue;
+
+      // Negation check on the previous two tokens.
+      const prev = (tokens[i - 1] || "").replace(/'/g, "");
+      const prev2 = (tokens[i - 2] || "").replace(/'/g, "");
+      if (NEGATORS.has(prev) || NEGATORS.has(prev2)) continue;
+
       const cur = counts.get(w) ?? { n: 0, sentiment };
       cur.n += 1;
       counts.set(w, cur);
