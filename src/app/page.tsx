@@ -46,6 +46,24 @@ const COMPANIONS: { value: Companion; label: string }[] = [
 const PAGE_SIZE = 3;
 
 type Stage = "setup" | "selecting" | "plan";
+type SortPref = "balanced" | "rating" | "distance";
+
+const SORT_OPTIONS: { value: SortPref; label: string }[] = [
+  { value: "balanced", label: "Balanced" },
+  { value: "rating", label: "Top rated" },
+  { value: "distance", label: "Closest" }
+];
+
+function sortOptions(list: Place[], sort: SortPref): Place[] {
+  const a = [...list];
+  if (sort === "rating") {
+    a.sort((x, y) => y.rating - x.rating || y.reviewCount - x.reviewCount);
+  } else if (sort === "distance") {
+    a.sort((x, y) => (x.distanceMeters ?? 0) - (y.distanceMeters ?? 0));
+  }
+  // "balanced" keeps the server's weighted-score order.
+  return a;
+}
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -132,6 +150,9 @@ export default function Home() {
   // plan state
   const [plan, setPlan] = useState<RoutePlan | null>(null);
 
+  // per-category sort preference
+  const [sortByCat, setSortByCat] = useState<Record<string, SortPref>>({});
+
   const timeInvalid = !(startTime < endTime);
   const context: TripContext = {
     location,
@@ -161,7 +182,7 @@ export default function Home() {
       const res = await fetch("/api/candidates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ context, category: cat, topN: 9 })
+        body: JSON.stringify({ context, category: cat, topN: 12 })
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "request failed");
       const data: CategoryOptions = await res.json();
@@ -331,6 +352,14 @@ export default function Home() {
           selectedId={selected[categories[stepIndex]?.key]?.id}
           loading={loading}
           error={error}
+          sort={sortByCat[categories[stepIndex]?.key] ?? "balanced"}
+          onSortChange={(s) => {
+            setSortByCat((prev) => ({
+              ...prev,
+              [categories[stepIndex].key]: s
+            }));
+            setPage(0);
+          }}
           onPick={pick}
           onPrev={prevStep}
           onNext={nextStep}
@@ -362,6 +391,8 @@ function SelectingView(props: {
   selectedId?: string;
   loading: boolean;
   error: string;
+  sort: SortPref;
+  onSortChange: (s: SortPref) => void;
   onPick: (p: Place) => void;
   onPrev: () => void;
   onNext: () => void;
@@ -377,6 +408,8 @@ function SelectingView(props: {
     selectedId,
     loading,
     error,
+    sort,
+    onSortChange,
     onPick,
     onPrev,
     onNext,
@@ -385,7 +418,7 @@ function SelectingView(props: {
   } = props;
 
   const cat = categories[stepIndex];
-  const all = options?.options ?? [];
+  const all = sortOptions(options?.options ?? [], sort);
   const pageCount = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
   const slice = all.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
@@ -410,6 +443,20 @@ function SelectingView(props: {
           No {cat?.label} spots are open during your time window. Try widening the
           window, or go back and adjust.
         </p>
+      )}
+
+      {all.length > 0 && (
+        <div className="segmented">
+          {SORT_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              className={`seg-btn ${sort === o.value ? "active" : ""}`}
+              onClick={() => onSortChange(o.value)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
       )}
 
       <div className="cards">
