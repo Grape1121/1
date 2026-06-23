@@ -74,7 +74,8 @@ export default function Home() {
 
   // setup state
   const [location, setLocation] = useState("Mission District, San Francisco");
-  const [time, setTime] = useState("afternoon");
+  const [startTime, setStartTime] = useState("14:00");
+  const [endTime, setEndTime] = useState("18:00");
   const [companions, setCompanions] = useState<Companion>("partner");
   const [categories, setCategories] = useState<CategoryRequest[]>(
     ["froyo", "coffee", "dinner"].map(
@@ -93,7 +94,14 @@ export default function Home() {
   // plan state
   const [plan, setPlan] = useState<RoutePlan | null>(null);
 
-  const context: TripContext = { location, time, companions };
+  const timeInvalid = !(startTime < endTime);
+  const context: TripContext = {
+    location,
+    companions,
+    startTime,
+    endTime,
+    dayOfWeek: new Date().getDay()
+  };
 
   function toggleCategory(c: CategoryRequest) {
     setCategories((prev) =>
@@ -213,27 +221,38 @@ export default function Home() {
 
           <div className="row">
             <div>
-              <label>When</label>
-              <select value={time} onChange={(e) => setTime(e.target.value)}>
-                <option value="afternoon">This afternoon</option>
-                <option value="evening">This evening</option>
-                <option value="morning">This morning</option>
-              </select>
+              <label>Start time</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
             </div>
             <div>
-              <label>Who&apos;s coming</label>
-              <select
-                value={companions}
-                onChange={(e) => setCompanions(e.target.value as Companion)}
-              >
-                {COMPANIONS.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+              <label>End time</label>
+              <input
+                type="time"
+                value={endTime}
+                min={startTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
             </div>
           </div>
+          {timeInvalid && (
+            <div className="error">End time must be after start time.</div>
+          )}
+
+          <label>Who&apos;s coming</label>
+          <select
+            value={companions}
+            onChange={(e) => setCompanions(e.target.value as Companion)}
+          >
+            {COMPANIONS.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
 
           <label>Stops you want to make (in order)</label>
           <div className="chips">
@@ -254,7 +273,7 @@ export default function Home() {
 
           <button
             className="primary"
-            disabled={categories.length === 0 || !location}
+            disabled={categories.length === 0 || !location || timeInvalid}
             onClick={startSelecting}
           >
             Find spots for {categories.length} stop
@@ -343,6 +362,12 @@ function SelectingView(props: {
 
       {loading && <p className="sub">Finding the best {cat?.label} spots…</p>}
       {error && <div className="error">{error}</div>}
+      {!loading && all.length === 0 && (
+        <p className="sub">
+          No {cat?.label} spots are open during your time window. Try widening the
+          window, or go back and adjust.
+        </p>
+      )}
 
       <div className="cards">
         {slice.map((p) => (
@@ -369,6 +394,9 @@ function SelectingView(props: {
                 {p.distanceMeters != null && fmtDistance(Math.round(p.distanceMeters))}{" "}
                 away
               </div>
+              {p.hoursLabel && (
+                <div className="meta">🕒 Open {p.hoursLabel}</div>
+              )}
               {p.keywords && p.keywords.length > 0 && (
                 <div className="tags">
                   {p.keywords.map((k) => (

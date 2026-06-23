@@ -1,4 +1,5 @@
 import { GOOGLE_MAPS_API_KEY } from "../config";
+import { parseGooglePeriods } from "../hours";
 import type { CategoryRequest, Place, Review } from "../types";
 
 const PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
@@ -22,7 +23,8 @@ const FIELD_MASK = [
   "places.location",
   "places.googleMapsUri",
   "places.photos",
-  "places.reviews"
+  "places.reviews",
+  "places.regularOpeningHours"
 ].join(",");
 
 /** Resolve a free-text location (or "lat,lng") to coordinates. */
@@ -99,7 +101,8 @@ export async function googleSearch(
       lng: p.location?.longitude ?? origin.lng,
       photoUrl: photoUrl(p.photos?.[0]?.name),
       mapsUrl: p.googleMapsUri,
-      reviews
+      reviews,
+      hoursPeriods: parseGooglePeriods(p.regularOpeningHours)
     };
   });
 }
