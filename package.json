@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "bot": "tsx src/bot/cli.ts"
+    "bot": "tsx src/bot/cli.ts",
+    "eval": "tsx scripts/eval-keywords.ts"
   },
   "dependencies": {
     "next": "15.5.19",

@@ -1,0 +1,31 @@
+name: CI
+
+# Quality gate: build the app and run the offline sentiment eval on every PR
+# (and on pushes to main). Neither step calls any external API — fully free.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Sentiment-keyword eval (quality gate)
+        run: npm run eval
