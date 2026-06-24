@@ -27,5 +27,8 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
 
+      - name: Unit tests
+        run: npm run test
+
       - name: Sentiment-keyword eval (quality gate)
         run: npm run eval

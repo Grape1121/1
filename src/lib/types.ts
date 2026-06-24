@@ -18,6 +18,8 @@ export interface TripContext {
   dayOfWeek?: number;
   /** Who the user is going with — biases the ranking. */
   companions: Companion;
+  /** Max price level to allow (0..4); places above it are filtered out. */
+  maxPrice?: number;
   /** Search radius around the location, in meters. */
   radiusMeters?: number;
 }

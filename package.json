@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "bot": "tsx src/bot/cli.ts",
-    "eval": "tsx scripts/eval-keywords.ts"
+    "eval": "tsx scripts/eval-keywords.ts",
+    "test": "tsx scripts/test.ts"
   },
   "dependencies": {
     "next": "15.5.19",
