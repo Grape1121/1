@@ -71,8 +71,16 @@ function stars(rating: number) {
   return "★".repeat(Math.round(rating)) + "☆".repeat(5 - Math.round(rating));
 }
 
+// Approximate per-person money brackets mapped from Google's 1–4 price level.
+const PRICE_BRACKET: Record<number, string> = {
+  1: "$0–15",
+  2: "$15–30",
+  3: "$30–60",
+  4: "$60+"
+};
+
 function priceStr(level?: number) {
-  return level && level > 0 ? "$".repeat(level) : "";
+  return level && level > 0 ? PRICE_BRACKET[level] ?? "" : "";
 }
 
 function fmtDuration(seconds: number) {
@@ -318,17 +326,17 @@ export default function Home() {
               </select>
             </div>
             <div>
-              <label>Budget</label>
+              <label>Budget (per person)</label>
               <select
                 value={maxPrice}
                 onChange={(e) =>
                   setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))
                 }
               >
-                <option value="">Any</option>
-                <option value="1">$ and under</option>
-                <option value="2">$$ and under</option>
-                <option value="3">$$$ and under</option>
+                <option value="">Any budget</option>
+                <option value="1">Under $15</option>
+                <option value="2">Under $30</option>
+                <option value="3">Under $60</option>
               </select>
             </div>
           </div>
