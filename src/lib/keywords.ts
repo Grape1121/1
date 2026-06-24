@@ -4,7 +4,7 @@ import type { KeywordTag, Review } from "./types";
 // words that carry a clear positive or negative feeling, then surface the most
 // frequent ones — so cards show "how people feel", not random nouns.
 
-const POSITIVE = new Set([
+export const POSITIVE = new Set([
   "delicious", "tasty", "yummy", "flavorful", "fresh", "amazing", "awesome",
   "great", "good", "best", "excellent", "wonderful", "fantastic", "lovely",
   "perfect", "favorite", "favourite", "love", "loved", "friendly", "attentive",
@@ -22,7 +22,7 @@ const POSITIVE = new Set([
 // NOTE: words that double as menu items in food reviews are deliberately
 // excluded to avoid false alarms — e.g. "dirty" (dirty chai), "cold" (cold
 // brew), "dry" (dry martini).
-const NEGATIVE = new Set([
+export const NEGATIVE = new Set([
   "rude", "slow", "expensive", "overpriced", "pricey", "bland", "tasteless",
   "stale", "soggy", "greasy", "cramped", "crowded", "loud", "noisy",
   "disappointing", "disappointed", "mediocre", "meh", "rushed", "unfriendly",
