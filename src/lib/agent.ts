@@ -13,6 +13,19 @@ const PIN_LAST = ["dinner", "lunch", "supper", "brunch"];
 // Beyond this max straight-line gap between stops we assume driving, not walking.
 const DRIVE_THRESHOLD_METERS = 2500;
 
+/** Drop duplicate venues (same name, or near-identical name + close location). */
+function dedupePlaces(places: Place[]): Place[] {
+  const seen = new Set<string>();
+  const out: Place[] = [];
+  for (const p of places) {
+    const key = p.name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24);
+    if (key && seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
+  return out;
+}
+
 function pickTravelMode(origin: { lat: number; lng: number }, places: Place[]): TravelMode {
   const pts = [origin, ...places];
   let maxGap = 0;
@@ -49,7 +62,14 @@ export async function getCategoryOptions(
   const fetchCount = Math.max(topN, 15);
   const { places, source } = await fetchCandidates(category, ctx, origin, fetchCount);
 
-  let scored = scorePlaces(places, ctx, radius);
+  let scored = dedupePlaces(scorePlaces(places, ctx, radius));
+
+  // Budget filter: drop places above the max price (keep unknown prices).
+  if (typeof context.maxPrice === "number") {
+    scored = scored.filter(
+      (p) => p.priceLevel === undefined || p.priceLevel <= context.maxPrice!
+    );
+  }
 
   // Only keep places open during the outing window (when a valid one is given).
   const startMin = timeToMinutes(context.startTime);

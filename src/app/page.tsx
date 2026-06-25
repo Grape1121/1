@@ -71,8 +71,16 @@ function stars(rating: number) {
   return "★".repeat(Math.round(rating)) + "☆".repeat(5 - Math.round(rating));
 }
 
+// Approximate per-person money brackets mapped from Google's 1–4 price level.
+const PRICE_BRACKET: Record<number, string> = {
+  1: "$0–15",
+  2: "$15–30",
+  3: "$30–60",
+  4: "$60+"
+};
+
 function priceStr(level?: number) {
-  return level && level > 0 ? "$".repeat(level) : "";
+  return level && level > 0 ? PRICE_BRACKET[level] ?? "" : "";
 }
 
 function fmtDuration(seconds: number) {
@@ -133,6 +141,7 @@ export default function Home() {
   const [startTime, setStartTime] = useState("14:00");
   const [endTime, setEndTime] = useState("18:00");
   const [companions, setCompanions] = useState<Companion>("partner");
+  const [maxPrice, setMaxPrice] = useState<number | "">("");
   const [categories, setCategories] = useState<CategoryRequest[]>(
     ["froyo", "coffee", "dinner"].map(
       (k) => PRESETS.find((p) => p.key === k)!
@@ -159,7 +168,8 @@ export default function Home() {
     companions,
     startTime,
     endTime,
-    dayOfWeek: new Date().getDay()
+    dayOfWeek: new Date().getDay(),
+    ...(maxPrice === "" ? {} : { maxPrice })
   };
 
   function toggleCategory(c: CategoryRequest) {
@@ -301,17 +311,35 @@ export default function Home() {
             <div className="error">End time must be after start time.</div>
           )}
 
-          <label>Who&apos;s coming</label>
-          <select
-            value={companions}
-            onChange={(e) => setCompanions(e.target.value as Companion)}
-          >
-            {COMPANIONS.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+          <div className="row">
+            <div>
+              <label>Who&apos;s coming</label>
+              <select
+                value={companions}
+                onChange={(e) => setCompanions(e.target.value as Companion)}
+              >
+                {COMPANIONS.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label>Budget (per person)</label>
+              <select
+                value={maxPrice}
+                onChange={(e) =>
+                  setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))
+                }
+              >
+                <option value="">Any budget</option>
+                <option value="1">Under $15</option>
+                <option value="2">Under $30</option>
+                <option value="3">Under $60</option>
+              </select>
+            </div>
+          </div>
 
           <label>Stops you want to make (in order)</label>
           <div className="chips">
@@ -502,8 +530,15 @@ function SelectingView(props: {
                 </div>
               )}
               {p.reviews?.[0]?.text && (
-                <div className="review-wrap">
-                  <div className="review">&ldquo;{p.reviews[0].text}&rdquo;</div>
+                <div
+                  className="review-wrap"
+                  tabIndex={0}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="review">
+                    &ldquo;{p.reviews[0].text}&rdquo;
+                    <span className="review-more"> · tap/hover for all</span>
+                  </div>
                   <div className="review-pop">
                     {p.reviews.map((r, idx) => (
                       <div key={idx} className="review-pop-item">
@@ -561,6 +596,48 @@ function SelectingView(props: {
 
 // ---- plan view -------------------------------------------------------------
 
+// A lightweight inline-SVG sketch of the route (no map API needed).
+function RouteMap({ plan }: { plan: RoutePlan }) {
+  const origin = plan.legs[0]?.from as { lat: number; lng: number } | undefined;
+  const stops = plan.orderedPlaces;
+  if (!origin || stops.length === 0) return null;
+
+  const nodes = [
+    { lat: origin.lat, lng: origin.lng, label: "" },
+    ...stops.map((p, i) => ({ lat: p.lat, lng: p.lng, label: String(i + 1) }))
+  ];
+  const lats = nodes.map((n) => n.lat);
+  const lngs = nodes.map((n) => n.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const W = 100;
+  const H = 60;
+  const PAD = 9;
+  const rLat = maxLat - minLat || 1;
+  const rLng = maxLng - minLng || 1;
+  const x = (lng: number) => PAD + ((lng - minLng) / rLng) * (W - 2 * PAD);
+  const y = (lat: number) => PAD + ((maxLat - lat) / rLat) * (H - 2 * PAD);
+  const pts = nodes.map((n) => ({ px: x(n.lng), py: y(n.lat), label: n.label }));
+
+  return (
+    <svg className="route-map" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+      <polyline className="rm-path" points={pts.map((p) => `${p.px},${p.py}`).join(" ")} />
+      {pts.map((p, i) => (
+        <g key={i}>
+          <circle className={i === 0 ? "rm-origin" : "rm-stop"} cx={p.px} cy={p.py} r={i === 0 ? 2 : 3.4} />
+          {i > 0 && (
+            <text className="rm-num" x={p.px} y={p.py + 1.3} textAnchor="middle" fontSize="3.6">
+              {p.label}
+            </text>
+          )}
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 function PlanView({
   plan,
   startTime,
@@ -611,6 +688,8 @@ function PlanView({
           {fmtClock(endMin!)} end time. Drop a stop or start earlier to fit.
         </div>
       )}
+
+      <RouteMap plan={plan} />
 
       <div className="timeline">
         {plan.orderedPlaces.map((p, i) => (
