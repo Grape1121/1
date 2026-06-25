@@ -45,7 +45,8 @@ export async function geocode(
 
 function photoUrl(photoName: string | undefined): string | undefined {
   if (!photoName) return undefined;
-  return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=600&key=${GOOGLE_MAPS_API_KEY}`;
+  // Proxy through our own server so the API key never reaches the browser.
+  return `/api/photo?name=${encodeURIComponent(photoName)}`;
 }
 
 export async function googleSearch(
